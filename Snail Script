@@ -26,12 +26,25 @@ Camera.CameraSubject = Character.Head
 local rayDirection = Vector3.new(0, -10, 0)
 local t = 5
 local KeyDown = false
-local BUGCFRAME = CFrame.new(0,0,0)
+local BUGCFRAME = Character.Head.CFrame
 
-Character.Animate:Remove()
+pcall(function()
+	Character.Animate.Disabled = true
+end)
+
+for i,v in next, Character.Humanoid:GetPlayingAnimationTracks() do
+	v:Stop()
+end
 
 game:GetService"RunService".RenderStepped:Connect(function()
-	Character.Humanoid:ChangeState(11)
+	Character.Humanoid:ChangeState(11) -- continue to execute after death
+	Character.Humanoid.JumpPower = 0
+	Character.Humanoid.JumpHeight = 0
+	Character.Humanoid.WalkSpeed = 0
+	Character.Humanoid.HipHeight = 0
+	Character.Humanoid.AutoRotate = false
+	Character.Humanoid.PlatformStand = true 
+
 	if KeyDown then
 		local rayOrigin = (
 			CFrame.lookAt(
@@ -41,13 +54,14 @@ game:GetService"RunService".RenderStepped:Connect(function()
 					0
 				), 
 				Camera.CFrame.Position
-			) * CFrame.new(
-				0,
-				0,
-				_G.bugspeed
-			)
+			) 
+				* CFrame.new(
+					0,
+					0,
+					_G.bugspeed
+				)
 		).Position
-		
+
 		local raycastResult = workspace:Raycast(
 			rayOrigin, 
 			rayDirection, 
@@ -89,14 +103,8 @@ game:GetService"RunService".RenderStepped:Connect(function()
 		-Camera.CFrame.LookVector.X, 
 		-Camera.CFrame.LookVector.Z
 	) - (Camera.CFrame.LookVector.X/4.3)
-	
-	TweenService:Create( -- some how this patches 
-		Character.HumanoidRootPart, 
-		TweenInfo.new(0.1), 
-		{ 
-			CFrame = BUGCFRAME * CFrame.Angles(0,camRotation,0)
-		}
-	):Play()
+
+	Character.HumanoidRootPart.CFrame = BUGCFRAME * CFrame.Angles(0,camRotation,0)
 end)
 
 if ShowAnalPicturesOfMattRatt then
@@ -105,12 +113,18 @@ if ShowAnalPicturesOfMattRatt then
 	end
 end
 
-UserInputService.InputBegan:Connect(function(input)
+UserInputService.InputBegan:Connect(function(input, gameprocessed)
+	if gameprocessed then
+		return
+	end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		KeyDown = true
 	end
 end)
-UserInputService.InputEnded:Connect(function(input)
+UserInputService.InputEnded:Connect(function(input, gameprocessed)
+	if gameprocessed then
+		return
+	end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		KeyDown = false
 	end
@@ -120,16 +134,9 @@ for _, ins in pairs(Character:GetDescendants()) do
 	if ins:IsA'BasePart' then
 		game:GetService"RunService".RenderStepped:Connect(function()
 			ins.CanCollide = false
-			ins.CustomPhysicalProperties = PhysicalProperties.new(
-				0,
-				0,
-				0,
-				0,
-				0
-			)
 			ins.Velocity = Vector3.new(
 				0,
-				4,
+				2,
 				0
 			)
 		end)
