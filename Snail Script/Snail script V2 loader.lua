@@ -88,4 +88,4 @@ _G.Snail_Config = {
 ------------------------------
 
 if _G.Snail_Ran then return end
-loadstring(game:HttpGet('https://raw.githubusercontent.com/MastersMZ-Scripts/Scripts/master/Snail%20Script/Snail%20Script%20V2.lua'))()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/MastersMZ-Scripts/Scripts/main/Snail%20Script/Snail%20Script%20V2.lua'))()
