@@ -1,0 +1,401 @@
+--[[
+	           ,."""""""""""""".,
+	        .d"                  "b.
+	      .d                        b.
+	    ."         .. depso ..        ".
+	   P        z$*"        "*e.        9.
+	  A       d"                "b       A
+	 J       J    .e*""""""%c     A       L
+	A       A    d"          $     L      A
+	#       %   d      d**y  'L    %      #
+	#       %   $     $ ,, Y  .$   %      #       _ _ 
+	#       %   $     *  """   F   %      #      (@)@)
+	#       V    4.    $.   .e"    Y      #        % %
+	#        $    *.    """"     .Y      V         $ $
+	#        'b     "b.      ..e*       Y         .eeee
+	V         '$      ""eeee""        eP         A     %
+	 Y         eb                ..d*"         _#    O %
+	 I    _e%*""""*$ee......ee$*"eeeeeeeezee$**"       $
+	  V ,"                                            B
+	  J'                                        _,e=""
+	.'#######################################DWB''
+
+	Made by Depso - mastersmzscripts.com
+	The SNAIL Script V2
+	
+	Please run the loader script instead of the main source.
+]]
+
+if not _G.Snail_Config  then
+	return warn("[SNAIL SCRIPT] Please run the Snail script loader instead")
+end
+
+--// Only run the script to update the config
+if _G.Snail_Ran then
+	return 
+end
+_G.Snail_Ran = true
+
+local RunConnections = {}
+local Config = _G.Snail_Config -- Temp
+
+--// Services
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+--// Instances
+local raycastParams
+local Camera = workspace.CurrentCamera
+local SnailPartsFolder = Instance.new("Folder", workspace)
+
+-- Camera focus
+local CameraPart = Instance.new("Part", SnailPartsFolder)
+CameraPart.Anchored = true
+CameraPart.Transparency = 1
+CameraPart.Size = Vector3.new(1.5,1.5,1.5)
+CameraPart.Color = Color3.fromRGB(255, 170, 0)
+CameraPart.CanCollide = false
+
+-- Teleport highlight
+local HighlightPart = Instance.new("Part", SnailPartsFolder)
+HighlightPart.Anchored = true
+HighlightPart.Transparency = 1
+HighlightPart.Size = Vector3.new(2,2,2)
+HighlightPart.Color = Color3.fromRGB(255, 0, 0) 
+HighlightPart.Shape = Enum.PartType.Ball
+HighlightPart.CanQuery = false
+HighlightPart.CanCollide = false
+HighlightPart.Material = Enum.Material.ForceField
+
+--// Dirt particle effect
+local DirtSpecks = Instance.new("ParticleEmitter", CameraPart) 
+DirtSpecks.Enabled = false
+DirtSpecks.Drag = 3 
+DirtSpecks.Rate = 60 
+DirtSpecks.Acceleration = Vector3.new(0, -5, 0) 
+DirtSpecks.Speed = NumberRange.new(10,15)
+DirtSpecks.SpreadAngle = Vector2.new(90,90)
+DirtSpecks.Texture = "rbxassetid://4509687978" 
+DirtSpecks.Lifetime = NumberRange.new(0.5,1)
+DirtSpecks.Color = Config.DirtColor
+DirtSpecks.Size = Config.DirtSize
+DirtSpecks.Transparency = NumberSequence.new{
+	NumberSequenceKeypoint.new(0, 0), 
+	NumberSequenceKeypoint.new(0.50, 0.5),
+	NumberSequenceKeypoint.new(1, 0)
+}
+
+--// Snail trail
+local Trail = Instance.new("Trail", SnailPartsFolder)
+Trail.Color = Config.Color
+Trail.Lifetime = Config.Length
+Trail.Transparency = Config.Transparency
+Trail.FaceCamera = true
+Trail.WidthScale =  NumberSequence.new{
+	NumberSequenceKeypoint.new(0.00, 0.8), 
+	NumberSequenceKeypoint.new(1.00, 0.0)
+}
+
+--// LocalPlayer
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Character: Model
+local Head: Part
+local Root: Part
+local Humanoid: Humanoid
+
+--// Functions
+
+--// Sound service
+local Sounds = {}
+for Name, Info in next, Config.Audios do
+	local Parent = LocalPlayer.PlayerGui
+	local Sound = Instance.new("Sound", Parent)
+	Sound.Volume = 0.5
+
+	--// Change properties for sound
+	for Key, Value in next, Info do
+		if Key == "SoundId" then
+			Value = `rbxassetid://{Value}`
+		end
+		Sound[Key] = Value
+	end
+
+	--// Overwrite
+	Sounds[Name] = Sound
+end
+
+local function PlaySound(Sound)
+	if not _G.Snail_Config.Sounds then return end
+	Sound:Play()
+end
+local function StopSound(Sound)
+	Sound:Stop()
+end
+
+function CharacterAdded(NewChar)
+	if not _G.Snail_Config.Enabled then return end
+
+	--// Collect Humanoid Limbs
+	Character = NewChar
+	Head = Character:WaitForChild("Head")
+	Humanoid = Character:WaitForChild("Humanoid")
+	Root = Humanoid.RootPart
+
+	--// Destroy all previous NoClip connections
+	for _, Connection in next, RunConnections do
+		Connection:Disconnect()
+	end
+
+	raycastParams = Get_raycastParams()
+	Camera.CameraSubject = CameraPart
+
+	--// Call character functions
+	RemoveLimbs()
+	ApplyVelocity()
+	ApplyTrail()
+	ApplyNoClip()
+	delay(2, StopAnimations)
+
+	--// Modify Humanoid 
+	Humanoid.WalkSpeed = 0
+	Humanoid.HipHeight = 0
+	Humanoid.AutoRotate = false
+	Humanoid.PlatformStand = true 
+end
+
+function ApplyTrail()
+	local Config = _G.Snail_Config
+	local Attachment0 = Instance.new("Attachment", Head)
+	local Attachment1 = Instance.new("Attachment", Head)
+
+	Attachment1.CFrame = CFrame.new(0,0, -1)
+
+	Trail.Attachment0 = Attachment0
+	Trail.Attachment1 = Attachment1
+end
+
+function StopAnimations()
+	local AnimateScript = Character:FindFirstChild("Animate")
+	if AnimateScript then
+		AnimateScript.Disabled = true
+	end
+	-- Suspend all active tracks
+	for _, Track in next, Humanoid:GetPlayingAnimationTracks() do
+		Track:Stop()
+	end
+end
+
+function ApplyNoClip()
+	local Connection = RunService.RenderStepped
+
+	--// Loop through Character limbs
+	for _, ins in next, Character:GetDescendants() do
+		if not ins:IsA'BasePart' then continue  end
+
+		table.insert(RunConnections, Connection:Connect(function()
+			ins.CanCollide = false
+		end))
+	end
+end
+
+function ApplyVelocity()
+	for _, limb in next, Character:GetChildren() do
+		if not limb:IsA("BasePart") then continue  end
+
+		--// Create static Velocity
+		local LinearVelocity = Instance.new("LinearVelocity", limb)
+		local Attachment0 = Instance.new("Attachment", limb)
+
+		LinearVelocity.Attachment0 = Attachment0
+		LinearVelocity.MaxForce = math.huge
+		LinearVelocity.VectorVelocity = Vector3.zero
+	end 
+end
+
+function RemoveLimbs()
+	--// Teleport old parts away
+	local OldLocation = Root.CFrame
+	Root.CFrame = CFrame.new(0,10^5,0)
+
+	--// Remove body limbs
+	for _, limb in next, Character:GetChildren() do
+		if not limb:IsA("BasePart") then continue  end
+
+		if limb.Name:find("Leg") or limb.Name:find("Arm") then
+			limb:Remove()
+		end
+	end
+	wait()
+
+	Root.CFrame = OldLocation
+end
+
+function Get_raycastParams()
+	local Params = RaycastParams.new()
+	Params.FilterType = Enum.RaycastFilterType.Exclude
+	Params.IgnoreWater = true
+	Params.FilterDescendantsInstances = {
+		Character,
+		CameraPart
+	}
+	return Params
+end
+
+--// -( Script entry )-
+
+--// Refresh variables
+LocalPlayer.CharacterAdded:Connect(CharacterAdded)
+CharacterAdded(LocalPlayer.Character)
+CameraPart.CFrame = Head.CFrame
+
+--// Animation loop
+local KeyDown = false
+local IsTunneling = false
+local Rot = 0
+
+local function GetLookAt(From): CFrame
+	--// Load Config
+	local Config = _G.Snail_Config
+
+	local At = Mouse.Hit
+	local Lookat = CFrame.lookAt(From.Position, At.Position)
+
+	return Lookat
+end
+
+local function TranslateCFrame(Original: CFrame): CFrame
+	local _, Y = Original:ToOrientation()
+	return CFrame.new(Original.Position) * CFrame.Angles(0,Y,0)
+end
+
+local function OffsetCFrame(Position: CFrame): CFrame
+	--// Load Config
+	local Config = _G.Snail_Config
+	local Offset = Config.Offset 
+	local TunnelOffset = Config.TunnelOffset 
+
+	if IsTunneling then
+		Offset = Offset * TunnelOffset
+	end
+
+	--// Process CFrames
+	local NewPosition = GetLookAt(Position * Offset)
+	CameraPart.CFrame = Position -- Set Camera focus CFrame
+
+	return TranslateCFrame(NewPosition)
+end
+
+local function SnailMove(NoMouse: false)
+
+	--// Load Config
+	local Config = _G.Snail_Config
+	local Speed = IsTunneling and Config.TunnelSpeed or Config.Speed
+	local RotationEffect = Config.RotationEffect
+	local DistSpeed = Config.DistanceChangesSpeed
+
+	--// Calculate CFrames
+	local MouseCFrame = not NoMouse and Mouse.Hit or CameraPart.CFrame
+
+	--// Distance controlled speed
+	if DistSpeed then
+		local MaxDistance = Config.Distance
+		local Distance = (CameraPart.Position - MouseCFrame.Position).magnitude
+		Speed = Speed * math.clamp(Distance / MaxDistance, 0, 1)
+	end
+
+	--// Dirt particle rate based on Speed
+	DirtSpecks.Rate = Speed * 60
+
+	local SpeedCFrame = CFrame.new(0, 0, -Speed)
+	local rayDirection = Vector3.new(0, -Config.Max_Height, 0) 
+	local RootOffset = CFrame.new(0, Config.Root_Height, 0)
+
+	local rayOrigin = (GetLookAt((CameraPart.CFrame * RootOffset)) * SpeedCFrame).Position
+
+	--// Create Raycast
+	local raycastResult = workspace:Raycast(
+		rayOrigin, 
+		rayDirection, 
+		raycastParams
+	)
+
+	--// Apply new CFrame
+	if raycastResult then
+		Rot += Speed/4
+
+		local Position = CFrame.new(raycastResult.Position)
+		local Turn = RotationEffect and math.sin(Rot) * 10 or 0
+		local Rotation = CFrame.Angles(0,0,math.rad(Turn))
+
+		Root.CFrame = OffsetCFrame(Position) * Rotation
+	end
+end
+RunService.RenderStepped:Connect(function()
+	if not KeyDown then return end
+	SnailMove()
+end)
+SnailMove()
+
+--// Process user keyboard input events
+local InputType = Enum.UserInputType.MouseButton1
+
+UserInputService.InputBegan:Connect(function(input, gameprocessed)
+	if gameprocessed then return end
+
+	--// Highlight teleport location
+	local Config = _G.Snail_Config
+	if input.KeyCode == Config.Teleport then 
+		HighlightPart.Transparency = 0
+
+		--// Loop until selected
+		repeat
+			HighlightPart.CFrame = CFrame.new(Mouse.Hit.Position)
+			RunService.RenderStepped:Wait()
+		until HighlightPart.Transparency == 1
+
+		Trail.Enabled = false
+		Root.CFrame = OffsetCFrame(HighlightPart.CFrame)
+		PlaySound(Sounds["Teleport"])
+		wait()
+		Trail.Enabled = true
+	end
+
+	--// Snail tunning
+	if input.KeyCode == Config.Tunnel then 
+		IsTunneling = not IsTunneling
+		SnailMove(true) -- Update the position
+
+		--// Play sound
+		if IsTunneling then
+			PlaySound(Sounds["Tunnel"])
+		else
+			StopSound(Sounds["Tunnel"])
+		end
+
+		--// Toggle effects
+		DirtSpecks.Enabled = IsTunneling and Config.DirtParticles
+	end
+
+	--// Go
+	if input.UserInputType == InputType then 
+		KeyDown = true 
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameprocessed)
+	--if gameprocessed then return end
+
+	--// Teleport snail to mouse location
+	local Config = _G.Snail_Config
+	if input.KeyCode == Config.Teleport then 
+		HighlightPart.Transparency = 1
+	end
+
+	--// Stop
+	if input.UserInputType == InputType then 
+		KeyDown = false 
+		DirtSpecks.Rate = 1
+	end
+end)
