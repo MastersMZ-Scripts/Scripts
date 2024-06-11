@@ -27,7 +27,15 @@
 ]]
 
 if not _G.Snail_Config  then
-	return warn("[SNAIL SCRIPT] Please run the Snail script loader instead")
+	return warn("[SNAIL SCRIPT] Please run the Snail script loader instead, thanks.")
+end
+
+local RunConnections = {}
+local Config = _G.Snail_Config -- Temp
+
+--// Fix config for old movement
+if Config.UseCameraRotaton then
+	Config.DistanceChangesSpeed = false
 end
 
 --// Only run the script to update the config
@@ -36,13 +44,11 @@ if _G.Snail_Ran then
 end
 _G.Snail_Ran = true
 
-local RunConnections = {}
-local Config = _G.Snail_Config -- Temp
-
 --// Services
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 
 --// Instances
 local raycastParams
@@ -100,6 +106,9 @@ Trail.WidthScale =  NumberSequence.new{
 --// LocalPlayer
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
+local IsMobile = UserInputService.TouchEnabled or Config.UseCameraRotaton
+local PlayerGui = LocalPlayer.PlayerGui
+
 local Character: Model
 local Head: Part
 local Root: Part
@@ -156,6 +165,7 @@ function CharacterAdded(NewChar)
 	ApplyVelocity()
 	ApplyTrail()
 	ApplyNoClip()
+	RemoveTouchControls()
 	delay(2, StopAnimations)
 
 	--// Modify Humanoid 
@@ -163,6 +173,12 @@ function CharacterAdded(NewChar)
 	Humanoid.HipHeight = 0
 	Humanoid.AutoRotate = false
 	Humanoid.PlatformStand = true 
+end
+
+function RemoveTouchControls()
+	local GUI = PlayerGui:FindFirstChild("TouchGui")
+	if not GUI then return end
+	GUI:Remove()
 end
 
 function ApplyTrail()
@@ -259,8 +275,12 @@ local function GetLookAt(From): CFrame
 	--// Load Config
 	local Config = _G.Snail_Config
 
-	local At = Mouse.Hit
+	local At = not IsMobile and Mouse.Hit or Camera:GetRenderCFrame()
 	local Lookat = CFrame.lookAt(From.Position, At.Position)
+	
+	if IsMobile then --// Apply movement method used in V1 for mobile
+		Lookat = Lookat * CFrame.Angles(0,math.rad(180),0)
+	end
 
 	return Lookat
 end
@@ -339,63 +359,88 @@ end)
 SnailMove()
 
 --// Process user keyboard input events
-local InputType = Enum.UserInputType.MouseButton1
-
-UserInputService.InputBegan:Connect(function(input, gameprocessed)
-	if gameprocessed then return end
-
-	--// Highlight teleport location
-	local Config = _G.Snail_Config
-	if input.KeyCode == Config.Teleport then 
-		HighlightPart.Transparency = 0
-
-		--// Loop until selected
-		repeat
-			HighlightPart.CFrame = CFrame.new(Mouse.Hit.Position)
-			RunService.RenderStepped:Wait()
-		until HighlightPart.Transparency == 1
-
-		Trail.Enabled = false
-		Root.CFrame = OffsetCFrame(HighlightPart.CFrame)
-		PlaySound(Sounds["Teleport"])
-		wait()
-		Trail.Enabled = true
-	end
-
-	--// Snail tunning
-	if input.KeyCode == Config.Tunnel then 
-		IsTunneling = not IsTunneling
-		SnailMove(true) -- Update the position
-
-		--// Play sound
-		if IsTunneling then
-			PlaySound(Sounds["Tunnel"])
-		else
-			StopSound(Sounds["Tunnel"])
-		end
-
-		--// Toggle effects
-		DirtSpecks.Enabled = IsTunneling and Config.DirtParticles
-	end
-
-	--// Go
-	if input.UserInputType == InputType then 
-		KeyDown = true 
-	end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gameprocessed)
-	--if gameprocessed then return end
-
-	--// Teleport snail to mouse location
-	local Config = _G.Snail_Config
-	if input.KeyCode == Config.Teleport then 
+local function RequestTeleport(_, inputState, a)
+	if inputState == Enum.UserInputState.End then
 		HighlightPart.Transparency = 1
+		return
+	end
+	if inputState ~= Enum.UserInputState.Begin then
+		return
+	end
+	
+	--// Highlight teleport location
+	HighlightPart.Transparency = 0
+	
+	--// Loop until selected
+	repeat
+		HighlightPart.CFrame = CFrame.new(Mouse.Hit.Position)
+		RunService.RenderStepped:Wait()
+	until HighlightPart.Transparency == 1
+
+	Trail.Enabled = false
+	Root.CFrame = OffsetCFrame(HighlightPart.CFrame)
+	PlaySound(Sounds["Teleport"])
+	wait()
+	Trail.Enabled = true
+end
+
+--// Snail tunning
+local function RequestTunnel(_, inputState)
+	IsTunneling = inputState == Enum.UserInputState.Begin
+	SnailMove(true) -- Update the position
+	
+	if IsMobile then
+		KeyDown = IsTunneling
 	end
 
-	--// Stop
-	if input.UserInputType == InputType then 
-		KeyDown = false 
+	--// Play sound
+	if IsTunneling then
+		PlaySound(Sounds["Tunnel"])
+	else
+		StopSound(Sounds["Tunnel"])
+	end
+
+	--// Toggle effects
+	DirtSpecks.Enabled = IsTunneling and Config.DirtParticles
+end
+
+local function RequestMove(_, inputState)
+	KeyDown = inputState == Enum.UserInputState.Begin
+	
+	--// Reset Tunnel effect
+	if not KeyDown then
 		DirtSpecks.Rate = 1
 	end
-end)
+end
+
+--// Connect functions to input events
+local SnailMove = "SnailMove"
+ContextActionService:BindAction(
+	SnailMove, 
+	RequestMove, 
+	true,
+	Enum.UserInputType.MouseButton1
+)
+ContextActionService:SetImage(
+	SnailMove, 
+	"rbxassetid://5985993007"
+)
+
+local SnailTunnel = "SnailTunnel"
+ContextActionService:BindAction(
+	SnailTunnel, 
+	RequestTunnel, 
+	true,
+	Config.Tunnel
+)
+ContextActionService:SetImage(
+	SnailTunnel, 
+	"rbxassetid://10104327834"
+)
+
+ContextActionService:BindAction(
+	"SnailTeleport", 
+	RequestTeleport, 
+	false,
+	Config.Teleport
+)
