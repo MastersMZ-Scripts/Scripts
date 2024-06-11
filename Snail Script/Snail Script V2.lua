@@ -158,7 +158,9 @@ function CharacterAdded(NewChar)
 	end
 
 	raycastParams = Get_raycastParams()
-	Camera.CameraSubject = CameraPart
+	delay(1, function()
+		Camera.CameraSubject = CameraPart
+	end)
 
 	--// Call character functions
 	RemoveLimbs()
