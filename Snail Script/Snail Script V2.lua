@@ -23,8 +23,10 @@
 	Made by Depso - mastersmzscripts.com
 	The SNAIL Script V2
 	
-	Please run the loader script
+	Please run the loader script.
 ]]
+
+------------------------------
 
 if not _G.Snail_Config  then
 	return warn("[SNAIL SCRIPT] Please run the Snail script loader instead, thanks.")
@@ -422,6 +424,11 @@ local function RequestMove(_, inputState)
 	end
 end
 
+local function ResetCamera(_, inputState)
+	if inputState ~= Enum.UserInputState.Begin then return end
+	CameraPart.CFrame = Head.CFrame
+end
+
 --// Connect functions to input events
 local SnailMove = "SnailMove"
 ContextActionService:BindAction(
@@ -452,4 +459,10 @@ ContextActionService:BindAction(
 	RequestTeleport, 
 	false,
 	Config.Teleport
+)
+ContextActionService:BindAction(
+	"SnailResetCamera", 
+	ResetCamera, 
+	false,
+	Config.ResetCamera
 )
