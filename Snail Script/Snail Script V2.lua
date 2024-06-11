@@ -23,7 +23,7 @@
 	Made by Depso - mastersmzscripts.com
 	The SNAIL Script V2
 	
-	Please run the loader script.
+	To update the config, run the script again.
 ]]
 
 ------------------------------
@@ -397,7 +397,15 @@ end
 
 --// Snail tunning
 local function RequestTunnel(_, inputState)
-	IsTunneling = inputState == Enum.UserInputState.Begin
+	local Config = _G.Snail_Config
+	
+	if Config.TunnelIsToggle then
+		if inputState ~= Enum.UserInputState.Begin then return end
+		IsTunneling = not IsTunneling
+	else
+		IsTunneling = inputState == Enum.UserInputState.Begin
+	end
+	
 	SnailMove(true) -- Update the position
 	
 	if IsMobile then
