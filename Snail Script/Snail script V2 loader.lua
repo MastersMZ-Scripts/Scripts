@@ -37,6 +37,7 @@ _G.Snail_Config = {
 	--// Control
 	Teleport = Enum.KeyCode.E,
 	Tunnel = Enum.KeyCode.Q,
+	ResetCamera = Enum.KeyCode.R,
 	DistanceChangesSpeed = true,
 	Distance = 5,
 	UseCameraRotaton = false, -- Old movement
