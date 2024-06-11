@@ -38,10 +38,13 @@ _G.Snail_Config = {
 	Teleport = Enum.KeyCode.E,
 	Tunnel = Enum.KeyCode.Q,
 	ResetCamera = Enum.KeyCode.R,
+	
+	TunnelIsToggle = false,
 	DistanceChangesSpeed = true,
-	Distance = 5,
 	UseCameraRotaton = false, -- Old movement
 
+	Distance = 5,
+	
 	--// Animations
 	RotationEffect = false,
 	Enabled = true, -- If disabled, the script will not run after death
