@@ -39,6 +39,7 @@ _G.Snail_Config = {
 	Tunnel = Enum.KeyCode.Q,
 	DistanceChangesSpeed = true,
 	Distance = 5,
+	UseCameraRotaton = false, -- Old movement
 
 	--// Animations
 	RotationEffect = false,
@@ -84,8 +85,7 @@ _G.Snail_Config = {
 	Root_Height = 4,
 }
 
-
 ------------------------------
 
 if _G.Snail_Ran then return end
-loadstring(game:HttpGet('https://raw.githubusercontent.com/MastersMZ-Scripts/Scripts/main/Snail%20Script/Snail%20Script%20V2.lua'))()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/MastersMZ-Scripts/Scripts/master/Snail%20Script/Snail%20Script%20V2.lua'))()
