@@ -137,15 +137,15 @@ for Name, Info in next, Config.Audios do
 	Sounds[Name] = Sound
 end
 
-local function PlaySound(Sound)
+local function PlaySound(Sound: Sound)
 	if not _G.Snail_Config.Sounds then return end
 	Sound:Play()
 end
-local function StopSound(Sound)
+local function StopSound(Sound: Sound)
 	Sound:Stop()
 end
 
-function CharacterAdded(NewChar)
+function CharacterAdded(NewChar: Model)
 	if not _G.Snail_Config.Enabled then return end
 
 	--// Collect Humanoid Limbs
@@ -282,7 +282,7 @@ local KeyDown = false
 local IsTunneling = false
 local Rot = 0
 
-local function GetLookAt(From): CFrame
+local function GetLookAt(From: CFrame): CFrame
 	--// Load Config
 	local Config = _G.Snail_Config
 
@@ -435,6 +435,7 @@ end
 local function ResetCamera(_, inputState)
 	if inputState ~= Enum.UserInputState.Begin then return end
 	CameraPart.CFrame = Head.CFrame
+	Camera.CameraSubject = CameraPart
 end
 
 --// Connect functions to input events
