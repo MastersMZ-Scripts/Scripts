@@ -1,9 +1,27 @@
-These are scripts that I have reviewed on my youtube channel @MastersMZ<br>
-<b>I DONT OWN THESE SCRIPTS</b>
+# MastersMZ scripts
+This repository contains scripts made for MastersMZ.
 
-<br>
+[📽] If you showcase these scripts, please do not re-upload but provide the url for the script. 
 
-<div style="width: 100%; display: flex">
-  <img src="https://yt3.googleusercontent.com/M-W3mmBLAQdeTGSjAXId9iF7DTKq3swJczlDca1CvDix2lIqLI4ASebzYveUIOkhu3aAByMpyw=s176-c-k-c0x00ffffff-no-rj" style="width: 100px">
-  <p style="width: 50px"> $MastersMZ </p>
-</div>
+
+## 📜 Loadstring creation:
+If you want to create a loadstring, use this improved template: 
+```lua
+local function ExecuteURL(Url) 
+  local Payload = request({
+    Url = Url,
+    Method = 'GET',
+    Headers = {
+      ['Content-Type'] = 'text/plain',
+    }
+  }).Body
+
+  -- Error check
+  if Payload:sub(1,3) == "404" then
+    return warn("[!] The script you have requested has moved or been deleted.")
+  end
+  return loadstring(Payload)()
+end
+
+ExecuteURL('https://raw.githubusercontent.com/MastersMZ-Scripts/Scripts/main/plague%20rizz%20script.lua')
+```
