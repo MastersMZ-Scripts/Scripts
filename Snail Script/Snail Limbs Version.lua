@@ -64,6 +64,8 @@ CameraPart.Transparency = 0.5
 CameraPart.Size = Vector3.new(1.5,1.5,1.5)
 CameraPart.Color = Color3.fromRGB(255, 170, 0)
 CameraPart.CanCollide = false
+CameraPart.Material = Enum.Material.ForceField
+CameraPart.Shape = Enum.PartType.Ball
 
 -- Teleport highlight
 local HighlightPart = Instance.new("Part", SnailPartsFolder)
@@ -136,7 +138,6 @@ function CharacterAdded(NewChar: Model)
 	end)
 
 	--// Call character functions
-	RemoveLimbs()
 	ApplyVelocity()
 	ApplyNoClip()
 	RemoveTouchControls()
@@ -160,13 +161,13 @@ function StopAnimations()
 	if AnimateScript then
 		AnimateScript.Disabled = true
 	end
-	
+
 	spawn(function()
 		while wait(1) and AnimateScript do
 			AnimateScript.Disabled = true
 		end
 	end)
-	
+
 	-- Suspend all active tracks
 	for _, Track in next, Humanoid:GetPlayingAnimationTracks() do
 		Track:Stop()
@@ -247,7 +248,7 @@ local function GetLookAt(From: CFrame): CFrame
 
 	local At = not IsMobile and Mouse.Hit or Camera:GetRenderCFrame()
 	local Lookat = CFrame.lookAt(From.Position, At.Position)
-	
+
 	if IsMobile then --// Apply movement method used in V1 for mobile
 		Lookat = Lookat * CFrame.Angles(0,math.rad(180),0)
 	end
@@ -334,10 +335,10 @@ local function RequestTeleport(_, inputState, a)
 	if inputState ~= Enum.UserInputState.Begin then
 		return
 	end
-	
+
 	--// Highlight teleport location
 	HighlightPart.Transparency = 0
-	
+
 	--// Loop until selected
 	repeat
 		HighlightPart.CFrame = CFrame.new(Mouse.Hit.Position)
@@ -351,25 +352,18 @@ end
 --// Snail tunning
 local function RequestTunnel(_, inputState)
 	local Config = _G.Snail_Config
-	
+
 	if Config.TunnelIsToggle then
 		if inputState ~= Enum.UserInputState.Begin then return end
 		IsTunneling = not IsTunneling
 	else
 		IsTunneling = inputState == Enum.UserInputState.Begin
 	end
-	
+
 	SnailMove(true) -- Update the position
-	
+
 	if IsMobile then
 		KeyDown = IsTunneling
-	end
-
-	--// Play sound
-	if IsTunneling then
-		PlaySound(Sounds["Tunnel"])
-	else
-		StopSound(Sounds["Tunnel"])
 	end
 end
 
