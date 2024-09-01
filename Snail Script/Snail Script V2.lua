@@ -39,6 +39,9 @@ local Config = _G.Snail_Config -- Temp
 if Config.UseCameraRotaton then
 	Config.DistanceChangesSpeed = false
 end
+if Config.IsMobile then
+    Config.NoMouse = true
+end
 
 --// Only run the script to update the config
 if _G.Snail_Ran then
@@ -137,12 +140,21 @@ for Name, Info in next, Config.Audios do
 	Sounds[Name] = Sound
 end
 
-local function PlaySound(Sound: Sound)
+function PlaySound(Sound: Sound)
 	if not _G.Snail_Config.Sounds then return end
 	Sound:Play()
 end
-local function StopSound(Sound: Sound)
+function StopSound(Sound: Sound)
 	Sound:Stop()
+end
+
+function CharacterAppearanceLoaded(Character: Model)
+    if not _G.Snail_Config.Enabled then return end
+
+    raycastParams = Get_raycastParams()
+    RemoveLimbs()
+    ApplyNoClip()
+    StopAnimations()
 end
 
 function CharacterAdded(NewChar: Model)
@@ -159,18 +171,13 @@ function CharacterAdded(NewChar: Model)
 		Connection:Disconnect()
 	end
 
-	raycastParams = Get_raycastParams()
 	delay(1, function()
 		Camera.CameraSubject = CameraPart
 	end)
 
-	--// Call character functions
-	RemoveLimbs()
 	ApplyVelocity()
 	ApplyTrail()
-	ApplyNoClip()
 	RemoveTouchControls()
-	delay(2, StopAnimations)
 
 	--// Modify Humanoid 
 	Humanoid.WalkSpeed = 0
@@ -263,8 +270,9 @@ function Get_raycastParams()
 	local Params = RaycastParams.new()
 	Params.FilterType = Enum.RaycastFilterType.Exclude
 	Params.IgnoreWater = true
+    Params.RespectCanCollide = true
 	Params.FilterDescendantsInstances = {
-		Character,
+        Character,
 		CameraPart
 	}
 	return Params
@@ -274,7 +282,12 @@ end
 
 --// Refresh variables
 LocalPlayer.CharacterAdded:Connect(CharacterAdded)
-CharacterAdded(LocalPlayer.Character)
+LocalPlayer.CharacterAppearanceLoaded:Connect(CharacterAppearanceLoaded)
+
+local Character = LocalPlayer.Character
+CharacterAdded(Character)
+CharacterAppearanceLoaded(Character)
+
 CameraPart.CFrame = Head.CFrame
 
 --// Animation loop
@@ -282,26 +295,12 @@ local KeyDown = false
 local IsTunneling = false
 local Rot = 0
 
-local function GetLookAt(From: CFrame): CFrame
-	--// Load Config
-	local Config = _G.Snail_Config
-
-	local At = not IsMobile and Mouse.Hit or Camera:GetRenderCFrame()
-	local Lookat = CFrame.lookAt(From.Position, At.Position)
-	
-	if IsMobile then --// Apply movement method used in V1 for mobile
-		Lookat = Lookat * CFrame.Angles(0,math.rad(180),0)
-	end
-
-	return Lookat
-end
-
-local function TranslateCFrame(Original: CFrame): CFrame
+function TranslateCFrame(Original: CFrame): CFrame
 	local _, Y = Original:ToOrientation()
 	return CFrame.new(Original.Position) * CFrame.Angles(0,Y,0)
 end
 
-local function OffsetCFrame(Position: CFrame): CFrame
+function OffsetCFrame(Position: CFrame): CFrame
 	--// Load Config
 	local Config = _G.Snail_Config
 	local Offset = Config.Offset 
@@ -318,22 +317,57 @@ local function OffsetCFrame(Position: CFrame): CFrame
 	return TranslateCFrame(NewPosition)
 end
 
-local function SnailMove(NoMouse: false)
+function GetMouseHit(): Vector3
+    local MousePosition = UserInputService:GetMouseLocation()
+    local UnitRay = Camera:ScreenPointToRay(MousePosition.X, MousePosition.Y)
+
+    local RaycastResult = workspace:Raycast(
+        UnitRay.Origin, 
+        UnitRay.Direction * 200, 
+        raycastParams
+    )
+
+    local Position = Vector3.zero
+
+    if RaycastResult then
+        Position = RaycastResult.Position
+    end
+
+    return Position
+end
+
+function GetLookAt(From: CFrame): CFrame
+	--// Load Config
+	local Config = _G.Snail_Config
+
+    local MousePos = GetMouseHit()
+    local CameraPos = Camera:GetRenderCFrame().Position
+    local At = NoMouse and CameraPos or MousePos
+	local Lookat = CFrame.lookAt(From.Position, At)
+	
+	if IsMobile then --// Apply movement method used in V1 for mobile
+		Lookat *= CFrame.Angles(0,math.rad(180),0)
+	end
+
+	return Lookat
+end
+
+function SnailMove(NoMouse: false)
 
 	--// Load Config
 	local Config = _G.Snail_Config
 	local Speed = IsTunneling and Config.TunnelSpeed or Config.Speed
 	local RotationEffect = Config.RotationEffect
 	local DistSpeed = Config.DistanceChangesSpeed
+    local MaxDistance = Config.Distance
 
 	--// Calculate CFrames
-	local MouseCFrame = not NoMouse and Mouse.Hit or CameraPart.CFrame
+	local MouseHitPos = NoMouse and CameraPart.Position or GetMouseHit()
 
 	--// Distance controlled speed
 	if DistSpeed then
-		local MaxDistance = Config.Distance
-		local Distance = (CameraPart.Position - MouseCFrame.Position).magnitude
-		Speed = Speed * math.clamp(Distance / MaxDistance, 0, 1)
+        local Distance = (CameraPart.Position - MouseHitPos).Magnitude
+		Speed *= math.clamp(Distance / MaxDistance, 0, 1)
 	end
 
 	--// Dirt particle rate based on Speed
@@ -343,20 +377,23 @@ local function SnailMove(NoMouse: false)
 	local rayDirection = Vector3.new(0, -Config.Max_Height, 0) 
 	local RootOffset = CFrame.new(0, Config.Root_Height, 0)
 
-	local rayOrigin = (GetLookAt((CameraPart.CFrame * RootOffset)) * SpeedCFrame).Position
+    local Direction = GetLookAt((CameraPart.CFrame * RootOffset))
+	local RayOrigin = (Direction * SpeedCFrame).Position
 
 	--// Create Raycast
-	local raycastResult = workspace:Raycast(
-		rayOrigin, 
+	local RaycastResult = workspace:Raycast(
+		RayOrigin, 
 		rayDirection, 
 		raycastParams
 	)
 
 	--// Apply new CFrame
-	if raycastResult then
+	if RaycastResult then
 		Rot += Speed/4
 
-		local Position = CFrame.new(raycastResult.Position)
+        --print(RaycastResult.Instance:GetFullName())
+
+		local Position = CFrame.new(RaycastResult.Position)
 		local Turn = RotationEffect and math.sin(Rot) * 10 or 0
 		local Rotation = CFrame.Angles(0,0,math.rad(Turn))
 
@@ -370,7 +407,7 @@ end)
 SnailMove()
 
 --// Process user keyboard input events
-local function RequestTeleport(_, inputState, a)
+function RequestTeleport(_, inputState, a)
 	if inputState == Enum.UserInputState.End then
 		HighlightPart.Transparency = 1
 		return
@@ -396,7 +433,7 @@ local function RequestTeleport(_, inputState, a)
 end
 
 --// Snail tunning
-local function RequestTunnel(_, inputState)
+function RequestTunnel(_, inputState)
 	local Config = _G.Snail_Config
 	
 	if Config.TunnelIsToggle then
@@ -423,7 +460,7 @@ local function RequestTunnel(_, inputState)
 	DirtSpecks.Enabled = IsTunneling and Config.DirtParticles
 end
 
-local function RequestMove(_, inputState)
+function RequestMove(_, inputState)
 	KeyDown = inputState == Enum.UserInputState.Begin
 	
 	--// Reset Tunnel effect
@@ -432,7 +469,7 @@ local function RequestMove(_, inputState)
 	end
 end
 
-local function ResetCamera(_, inputState)
+function ResetCamera(_, inputState)
 	if inputState ~= Enum.UserInputState.Begin then return end
 	CameraPart.CFrame = Head.CFrame
 	Camera.CameraSubject = CameraPart
